@@ -17,6 +17,27 @@ Tell it which prospects fit. The next search uses your explicit feedback and loc
 - **Stronger checks:** weighted scores are computed, missing dates/routes reduce their relevant dimensions, and malformed or incomplete qualified records are rejected.
 - **Recoverable upgrades:** the installer preserves your previous skill folder outside the active skills directory.
 
+## Local marketing dashboard
+
+This repository also includes an optional local dashboard for a marketing teammate. It stores leads in SQLite on the Mac, imports the skill's validated `analysis.json`, tracks `Mới`, `Đã liên hệ`, and `Bỏ qua`, and exports `.xlsx` or `.csv`. The web server binds only to `127.0.0.1`; there is no VPS or shared database.
+
+Requirements to run: macOS and Python 3.9+. The compiled React dashboard is included in the repo. Node.js 20.19+ with npm is only needed to rebuild the UI.
+
+```bash
+./lead-finder setup
+./lead-finder start
+```
+
+Research is performed by the AI running the skill. To guide a non-technical teammate, see [desktop/CMO-PROMPT.md](desktop/CMO-PROMPT.md). Codex Desktop (or another local agent with terminal access) can run setup; an ordinary ChatGPT web chat cannot install software onto a Mac. On first use, the local agent needs permission to run setup commands. The dashboard itself requires no AI API key.
+
+Import research results with:
+
+```bash
+./lead-finder import /path/to/analysis.json
+```
+
+The database and server log are stored under `~/Library/Application Support/VietnamLeadFinder/`. Back up that folder to preserve the local lead history. Google Sheets sync is not included in this first version; Excel and CSV exports work without Google credentials.
+
 “Learning” means saved search preferences, not model training. Public route verification means Codex inspected the page, not that the recipient consented to promotion.
 
 ## Install or update

@@ -1,0 +1,188 @@
+#!/bin/sh
+set -eu
+
+ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+APP_DIR="$HOME/Library/Application Support/VietnamLeadFinder"
+PORT=4317
+
+usage() {
+  printf '%s\n' \
+    'Vietnam Lead Finder local app' \
+    '' \
+    'Commands:' \
+    '  ./lead-finder setup                 Install UI dependencies and build the app' \
+    '  ./lead-finder start [--port PORT]   Start the local server and open the dashboard' \
+    '  ./lead-finder stop                  Stop this app' \
+    '  ./lead-finder status                Check whether the app is running' \
+    '  ./lead-finder brief                 Print current lead statuses for the AI assistant' \
+    '  ./lead-finder import FILE.json      Import a skill analysis.json into the dashboard' \
+    '  ./lead-finder doctor                Check local prerequisites'
+}
+
+doctor() {
+  python3 -c 'import sys, sqlite3; print("Python", sys.version.split()[0], "and SQLite: ready"); sys.exit(0 if sys.version_info >= (3, 9) else 1)' || {
+    printf '%s\n' 'Python 3.9 or newer is required.' >&2
+    return 1
+  }
+  if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+    printf 'Node %s, npm %s\n' "$(node --version)" "$(npm --version)"
+  else
+    printf '%s\n' 'Node.js/npm: not installed (only needed when rebuilding the React UI)'
+  fi
+  if command -v agent-reach >/dev/null 2>&1; then
+    printf 'Agent Reach: %s\n' "$(command -v agent-reach)"
+  else
+    printf '%s\n' 'Agent Reach: not installed here. The AI skill can use its own public research tools.'
+  fi
+}
+
+setup() {
+  doctor
+  if [ ! -f "$ROOT_DIR/desktop/web/dist/index.html" ]; then
+    if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+      printf '%s\n' 'The prebuilt dashboard bundle is missing. Install Node.js 20.19+ and npm to build it.' >&2
+      return 1
+    fi
+    node -e 'const [a,b]=process.versions.node.split(".").map(Number); if (a<20 || (a===20 && b<19)) process.exit(1)' || {
+      printf '%s\n' 'Node.js 20.19 or newer is required to rebuild the dashboard.' >&2
+      return 1
+    }
+    printf '%s\n' 'Building dashboard UI...'
+    if [ -f "$ROOT_DIR/desktop/web/package-lock.json" ]; then
+      npm ci --prefix "$ROOT_DIR/desktop/web" --no-audit --no-fund
+    else
+      npm install --prefix "$ROOT_DIR/desktop/web" --no-audit --no-fund
+    fi
+    npm run build --prefix "$ROOT_DIR/desktop/web"
+  else
+    printf '%s\n' 'Using the included dashboard bundle.'
+  fi
+  mkdir -p "$APP_DIR"
+  printf '%s\n' 'Setup complete. Start with ./lead-finder start'
+}
+
+check_running() {
+  python3 -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:'"$PORT"'/api/health", timeout=1).read().decode())' 2>/dev/null
+}
+
+case "${1:-help}" in
+  setup)
+    setup
+    ;;
+  doctor)
+    doctor
+    ;;
+  start)
+    shift
+    if [ "${1:-}" = "--port" ]; then
+      PORT="${2:-}"
+      if ! printf '%s' "$PORT" | awk '/^[0-9]+$/ { if ($0 >= 1024 && $0 <= 65535) ok=1 } END { exit !ok }'; then
+        printf '%s\n' 'Port must be a number from 1024 to 65535.' >&2
+        exit 2
+      fi
+    elif [ "$#" -gt 0 ]; then
+      usage >&2
+      exit 2
+    fi
+    if [ ! -f "$ROOT_DIR/desktop/web/dist/index.html" ]; then setup; fi
+    mkdir -p "$APP_DIR"
+    if [ -f "$APP_DIR/server.pid" ] && kill -0 "$(sed -n '1p' "$APP_DIR/server.pid")" 2>/dev/null; then
+      if check_running >/dev/null; then
+        printf 'Dashboard is already running at http://127.0.0.1:%s\n' "$PORT"
+        open "http://127.0.0.1:$PORT" >/dev/null 2>&1 || true
+        exit 0
+      fi
+    fi
+    nohup python3 "$ROOT_DIR/desktop/server.py" --port "$PORT" >"$APP_DIR/server.log" 2>&1 </dev/null &
+    SERVER_PID=$!
+    printf '%s\n' "$SERVER_PID" > "$APP_DIR/server.pid"
+    ATTEMPT=0
+    until check_running >/dev/null 2>&1; do
+      ATTEMPT=$((ATTEMPT + 1))
+      if [ "$ATTEMPT" -ge 30 ]; then
+        printf '%s\n' 'The server did not start. See ~/Library/Application Support/VietnamLeadFinder/server.log' >&2
+        exit 1
+      fi
+      sleep 1
+    done
+    printf 'Dashboard is ready at http://127.0.0.1:%s\n' "$PORT"
+    printf 'Local database: %s/leads.sqlite3\n' "$APP_DIR"
+    open "http://127.0.0.1:$PORT" >/dev/null 2>&1 || printf 'Open http://127.0.0.1:%s in your browser.\n' "$PORT"
+    ;;
+  status)
+    if check_running; then :; else printf '%s\n' 'Dashboard is not running.'; exit 1; fi
+    ;;
+  brief)
+    python3 - "$PORT" <<'PY'
+import json
+import sys
+import urllib.request
+
+try:
+    with urllib.request.urlopen(f"http://127.0.0.1:{sys.argv[1]}/api/leads", timeout=3) as response:
+        payload = json.load(response)
+    print(json.dumps({"counts": payload["counts"], "leads": [
+        {"id": lead["id"], "company": lead["company"], "status": lead["status"], "score": lead["score"]}
+        for lead in payload["leads"]
+    ]}, ensure_ascii=False, indent=2))
+except Exception as error:
+    print(f"Cannot read local lead status. Start the app with ./lead-finder start first. ({error})", file=sys.stderr)
+    raise SystemExit(1)
+PY
+    ;;
+  stop)
+    if [ ! -f "$APP_DIR/server.pid" ]; then
+      printf '%s\n' 'No Vietnam Lead Finder server is running.'
+      exit 0
+    fi
+    SERVER_PID=$(sed -n '1p' "$APP_DIR/server.pid")
+    if ! printf '%s' "$SERVER_PID" | awk '/^[0-9]+$/ { ok=1 } END { exit !ok }'; then
+      printf '%s\n' 'Invalid app PID file. Check it manually before stopping a process.' >&2
+      exit 1
+    fi
+    if kill -0 "$SERVER_PID" 2>/dev/null; then
+      COMMAND_LINE=$(ps -p "$SERVER_PID" -o command= 2>/dev/null || true)
+      case "$COMMAND_LINE" in
+        *"$ROOT_DIR/desktop/server.py"*) kill "$SERVER_PID" ;;
+        *) printf '%s\n' 'PID does not belong to this app. Leaving it running.' >&2; exit 1 ;;
+      esac
+    fi
+    python3 -c 'from pathlib import Path; Path(__import__("sys").argv[1]).unlink(missing_ok=True)' "$APP_DIR/server.pid"
+    printf '%s\n' 'Vietnam Lead Finder stopped.'
+    ;;
+  import)
+    shift
+    if [ "$#" -ne 1 ] || [ ! -f "$1" ]; then
+      printf '%s\n' 'Usage: ./lead-finder import /path/to/analysis.json' >&2
+      exit 2
+    fi
+    python3 - "$1" "$PORT" <<'PY'
+import json
+import sys
+import urllib.error
+import urllib.request
+
+path, port = sys.argv[1], sys.argv[2]
+with open(path, encoding="utf-8") as handle:
+    payload = json.load(handle)
+request = urllib.request.Request(
+    f"http://127.0.0.1:{port}/api/import",
+    data=json.dumps({"data": payload}, ensure_ascii=False).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+try:
+    with urllib.request.urlopen(request, timeout=10) as response:
+        result = json.load(response)
+    print(f"Imported {result['added']} leads; skipped {result['duplicates']} duplicates.")
+except urllib.error.URLError as error:
+    print(f"Cannot reach the local app at port {port}. Start it with ./lead-finder start first. ({error})", file=sys.stderr)
+    raise SystemExit(1)
+except urllib.error.HTTPError as error:
+    print(error.read().decode("utf-8", errors="replace"), file=sys.stderr)
+    raise SystemExit(1)
+PY
+    ;;
+  help|--help|-h) usage ;;
+  *) usage >&2; exit 2 ;;
+esac

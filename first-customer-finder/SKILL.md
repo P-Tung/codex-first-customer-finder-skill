@@ -91,6 +91,8 @@ Create a native Markdown report and CSV by default. Preserve the standalone HTML
 4. Return an absolute Markdown file link; when the Codex file-opening tool is available, open the report in the current task. Do not require that tool on other installations.
 5. Invite short feedback using the displayed IDs, for example: “P1 and P3 are a fit; avoid enterprise buyers.” Do not delay the first report waiting for feedback.
 
+When this repository's local dashboard is installed and the user asks to manage leads there, preserve the validated structured JSON as `analysis.json`, then run `./lead-finder import <absolute-analysis-json-path>`. The dashboard stores user-managed statuses and notes locally. Do not mark prospects contacted or ignored based on inference.
+
 ### 7. Refine when the user responds
 
 Save explicit keep/maybe/reject feedback with its reason. Translate an explicit general preference into updated search criteria and state what changed before a new search. A rejection of one company is not a rule against its entire industry; ask briefly if that distinction matters. “Learning” means a visible local preference update, not model training.
