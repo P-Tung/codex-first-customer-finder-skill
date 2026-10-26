@@ -59,6 +59,7 @@ def db() -> sqlite3.Connection:
         target_role TEXT,
         contact_url TEXT,
         contact_label TEXT,
+        public_contacts_json TEXT NOT NULL DEFAULT '{}',
         why_fit TEXT,
         why_now TEXT,
         dimensions_json TEXT,
@@ -74,6 +75,7 @@ def db() -> sqlite3.Connection:
     for name, sql_type in (
         ("source_type", "TEXT"), ("signal_date", "TEXT"),
         ("checked_at", "TEXT"), ("dimensions_json", "TEXT"),
+        ("public_contacts_json", "TEXT NOT NULL DEFAULT '{}'"),
     ):
         if name not in existing_columns:
             conn.execute(f"ALTER TABLE leads ADD COLUMN {name} {sql_type}")
@@ -81,7 +83,17 @@ def db() -> sqlite3.Connection:
 
 
 def lead_dict(row: sqlite3.Row) -> dict:
-    return dict(row)
+    result = dict(row)
+    try:
+        contacts = json.loads(result.get("public_contacts_json") or "{}")
+    except (TypeError, json.JSONDecodeError):
+        contacts = {}
+    for key, column in (("phone", "contact_phone"), ("email", "contact_email"),
+                        ("linkedin", "contact_linkedin"), ("facebook", "contact_facebook")):
+        item = contacts.get(key, {}) if isinstance(contacts, dict) else {}
+        result[column] = item.get("value", "") if isinstance(item, dict) else ""
+        result[f"{column}_source"] = item.get("source_url", "") if isinstance(item, dict) else ""
+    return result
 
 
 def export_rows(query: str) -> list[dict]:
@@ -94,8 +106,8 @@ def export_rows(query: str) -> list[dict]:
         clauses.append("status=?")
         values.append(status)
     if search:
-        clauses.append("(company LIKE ? OR industry LIKE ? OR location LIKE ? OR pain_signal LIKE ?)")
-        values.extend([f"%{search}%"] * 4)
+        clauses.append("(company LIKE ? OR industry LIKE ? OR location LIKE ? OR pain_signal LIKE ? OR public_contacts_json LIKE ?)")
+        values.extend([f"%{search}%"] * 5)
     sql = "SELECT * FROM leads" + (" WHERE " + " AND ".join(clauses) if clauses else "") + " ORDER BY score DESC, imported_at DESC"
     conn = db()
     rows = [lead_dict(row) for row in conn.execute(sql, values).fetchall()]
@@ -107,6 +119,8 @@ def xlsx_bytes(rows: list[dict]) -> bytes:
     """Create a dependency-free XLSX workbook with one Leads worksheet."""
     columns = [
         ("company", "Doanh nghiệp"), ("company_url", "Website doanh nghiệp"),
+        ("contact_phone", "Điện thoại công khai"), ("contact_email", "Email doanh nghiệp công khai"),
+        ("contact_linkedin", "LinkedIn doanh nghiệp"), ("contact_facebook", "Facebook doanh nghiệp"),
         ("industry", "Ngành"), ("location", "Khu vực"),
         ("score", "Điểm phù hợp"), ("stage", "Tín hiệu"), ("status", "Trạng thái"),
         ("target_role", "Vai trò mục tiêu"), ("pain_signal", "Nhu cầu / tín hiệu"),
@@ -216,8 +230,8 @@ class Handler(BaseHTTPRequestHandler):
                 clauses.append("status=?")
                 values.append(status)
             if search:
-                clauses.append("(company LIKE ? OR industry LIKE ? OR location LIKE ? OR pain_signal LIKE ?)")
-                values.extend([f"%{search}%"] * 4)
+                clauses.append("(company LIKE ? OR industry LIKE ? OR location LIKE ? OR pain_signal LIKE ? OR public_contacts_json LIKE ?)")
+                values.extend([f"%{search}%"] * 5)
             sql = "SELECT * FROM leads" + (" WHERE " + " AND ".join(clauses) if clauses else "") + " ORDER BY score DESC, imported_at DESC"
             leads = [lead_dict(row) for row in conn.execute(sql, values).fetchall()]
             counts = {s: conn.execute("SELECT COUNT(*) FROM leads WHERE status=?", (s,)).fetchone()[0] for s in STATUSES}
@@ -240,7 +254,7 @@ class Handler(BaseHTTPRequestHandler):
             from io import StringIO
             rows = export_rows(urlparse(self.path).query)
             output = StringIO(newline="")
-            fields = ["company", "company_url", "industry", "location", "score", "stage", "status", "target_role", "pain_signal", "evidence", "why_fit", "why_now", "source_title", "source_url", "signal_date", "checked_at", "contact_url", "next_step", "caution", "note"]
+            fields = ["company", "company_url", "contact_phone", "contact_email", "contact_linkedin", "contact_facebook", "industry", "location", "score", "stage", "status", "target_role", "pain_signal", "evidence", "why_fit", "why_now", "source_title", "source_url", "signal_date", "checked_at", "contact_url", "next_step", "caution", "note"]
             writer = csv.DictWriter(output, fieldnames=fields, extrasaction="ignore")
             writer.writeheader()
             for row in rows:
@@ -285,31 +299,51 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("Không thể nhập dữ liệu demo hư cấu vào danh sách khách hàng")
             conn = db()
             added = 0
+            enriched = 0
             for p in report.get("prospects", []):
                 existing = conn.execute("SELECT id FROM leads WHERE id=?", (p["id"],)).fetchone()
                 if existing:
+                    supplied_contacts = p.get("public_contacts", {})
+                    if supplied_contacts:
+                        current = conn.execute("SELECT public_contacts_json FROM leads WHERE id=?", (p["id"],)).fetchone()
+                        try:
+                            saved_contacts = json.loads(current["public_contacts_json"] or "{}")
+                        except (TypeError, json.JSONDecodeError):
+                            saved_contacts = {}
+                        merged_contacts = dict(saved_contacts) if isinstance(saved_contacts, dict) else {}
+                        changed = False
+                        for contact_key, contact_value in supplied_contacts.items():
+                            if contact_key not in merged_contacts:
+                                merged_contacts[contact_key] = contact_value
+                                changed = True
+                        if changed:
+                            conn.execute("UPDATE leads SET public_contacts_json=?, updated_at=? WHERE id=?",
+                                         (json.dumps(merged_contacts, ensure_ascii=False), now(), p["id"]))
+                            enriched += 1
                     continue
                 route = p.get("contact_route", {})
                 conn.execute("""INSERT INTO leads (
                     id, company, company_url, industry, location, score, stage, pain_signal,
                     evidence, source_type, source_title, source_url, signal_date, checked_at,
-                    target_role, contact_url, contact_label, why_fit, why_now, dimensions_json,
+                    target_role, contact_url, contact_label, public_contacts_json, why_fit, why_now, dimensions_json,
                     next_step, caution, status, note, project_key, imported_at, updated_at
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
                     p["id"], p["name"], p.get("entity_url"), p.get("industry", ""),
                     ", ".join(str(item) for item in raw.get("target_profile", {}).get("geography", [])) if isinstance(raw.get("target_profile", {}).get("geography", []), list) else str(raw.get("target_profile", {}).get("geography", "")),
                     p["score"], p.get("stage"), p.get("pain_signal"), p.get("evidence"),
                     p.get("source_type"), p.get("source_title"), p.get("source_url"),
                     p.get("signal_date"), p.get("checked_at"), p.get("target_role"),
                     route.get("url") if route.get("status") == "verified" else None,
-                    route.get("label"), p.get("why_fit"), p.get("why_now"),
+                    route.get("label"), json.dumps(p.get("public_contacts", {}), ensure_ascii=False),
+                    p.get("why_fit"), p.get("why_now"),
                     json.dumps(p.get("dimensions", {}), ensure_ascii=False), p.get("next_step"),
                     p.get("caution"), "new", "", raw.get("project_key"), now(), now(),
                 ))
                 added += 1
             conn.commit()
             conn.close()
-            return self._json({"added": added, "duplicates": len(report.get("prospects", [])) - added})
+            return self._json({"added": added, "updated_contacts": enriched,
+                               "duplicates": len(report.get("prospects", [])) - added})
         except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
             return self._json({"error": str(exc)}, 400)
 

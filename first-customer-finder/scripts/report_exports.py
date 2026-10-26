@@ -122,7 +122,8 @@ def format_quality(profile):
 
 CSV_FIELDS = ["record_type", "demo", "id", "name", "entity_url", "score", "stage", "target_role", "role_basis",
               "pain_signal", "source_url", "signal_date", "checked_at", "contact_status", "contact_url",
-              "contact_source_url", "contact_note", "next_step", "cta", "opener", "caution", "status", "feedback"]
+              "contact_source_url", "contact_note", "public_phone", "public_email", "public_linkedin", "public_facebook",
+              "next_step", "cta", "opener", "caution", "status", "feedback"]
 
 
 def csv_cell(value):
@@ -142,6 +143,12 @@ def build_csv(data):
     for p in data.get("prospects", []):
         row = {key: p.get(key, "") for key in CSV_FIELDS}
         route = p.get("contact_route", {})
+        public_contacts = p.get("public_contacts", {})
+        public_contacts = public_contacts if isinstance(public_contacts, dict) else {}
+        contact_values = {"phone": "public_phone", "email": "public_email", "linkedin": "public_linkedin", "facebook": "public_facebook"}
+        for key, field in contact_values.items():
+            item = public_contacts.get(key, {})
+            row[field] = item.get("value", "") if isinstance(item, dict) else ""
         row.update(record_type="prospect", demo=str(data.get("demo", False)).lower(),
                    contact_status=route.get("status", "not_verified"), contact_url=route.get("url", ""),
                    contact_source_url=route.get("source_url", ""), contact_note=route.get("note", ""))

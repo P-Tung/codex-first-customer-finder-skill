@@ -221,6 +221,18 @@ def normalize_report(raw):
                     raise ValueError("No verified route requires reachability <= 1")
             if data["quality_profile"]["require_contact_route"] and route["status"] != "verified":
                 raise ValueError("quality_profile requires a verified public contact route")
+            contacts = p.get("public_contacts", {})
+            if not isinstance(contacts, dict) or set(contacts) - {"phone", "email", "linkedin", "facebook"}:
+                raise ValueError("public_contacts may contain only phone, email, linkedin, and facebook")
+            for contact_key, contact in contacts.items():
+                if not isinstance(contact, dict):
+                    raise ValueError(f"public_contacts.{contact_key} must include a value and source_url")
+                text_field(contact, "value")
+                public_url(contact.get("source_url"))
+                if contact_key in {"linkedin", "facebook"}:
+                    public_url(contact["value"])
+                if contact_key == "email" and ("@" not in contact["value"] or " " in contact["value"]):
+                    raise ValueError("public business email must be a valid email address")
             if p["cta"].strip() not in p["opener"]:
                 raise ValueError("opener must include its concrete CTA verbatim")
             p["score"] = round(sum(dimensions[k] / 5 * weights[k] for k in DIMENSION_KEYS))

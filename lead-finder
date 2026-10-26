@@ -144,7 +144,13 @@ request = urllib.request.Request(
 try:
     with urllib.request.urlopen(request, timeout=10) as response:
         result = json.load(response)
-    print(f"Imported {result['added']} leads; skipped {result['duplicates']} duplicates.")
+    message = f"Imported {result['added']} leads"
+    if result.get("updated_contacts"):
+        message += f"; added public contact details to {result['updated_contacts']} existing leads"
+    skipped = result["duplicates"] - result.get("updated_contacts", 0)
+    if skipped:
+        message += f"; preserved {skipped} duplicate leads"
+    print(message + ".")
 except urllib.error.HTTPError as error:
     print(error.read().decode("utf-8", errors="replace"), file=sys.stderr)
     raise SystemExit(1)

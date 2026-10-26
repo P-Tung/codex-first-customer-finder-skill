@@ -93,6 +93,7 @@ This example is fictional. Never reuse its identities or evidence in real resear
 
 - `target_profile` is optional and user-controlled. It records the intended geography, industries, company stages, buyer roles, and exclusions for this run; it does not change evidence requirements by itself.
 - `quality_profile` is optional and user-controlled. Its five `weights` must total 100, `minimum_score` must be 0–100, and `require_contact_route` controls whether every primary prospect needs a verified public route. Omitted values use the default weights and minimum score 50.
+- `public_contacts` is optional and accepts only `phone`, `email`, `linkedin`, and `facebook`. Each field is an object with a publicly observed `value` and the exact original `source_url` that displays it. Keep only business contact details publicly listed by the company; do not guess, enrich, or infer an address or profile. Missing fields stay absent.
 - `project_key` is stable and product-specific. A different key cannot write into an existing product's history.
 - `entity_url` establishes the stable `p_...` ID; do not supply a fabricated identity or use a shared platform root. Duplicate identities are rejected rather than silently overwriting evidence. The renderer also adds P1/P2 ranks; they are local to each report.
 - `score` is derived from all five numeric dimensions (0–5); any supplied total is replaced. Below-50 candidates must be kept outside the qualified input.

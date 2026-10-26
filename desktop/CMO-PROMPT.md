@@ -9,7 +9,7 @@ Hãy dùng hướng dẫn trong AGENTS.md và tìm khách hàng tiềm năng là
 
 Trước khi tìm, chỉ hỏi tôi những thông tin còn thiếu có thể làm thay đổi đáng kể kết quả. Nếu tôi chưa đặt tiêu chuẩn chấm điểm, hãy dùng mặc định của skill và nói rõ các giả định. Không giới hạn ngành hay tự đặt thêm tiêu chí không được yêu cầu.
 
-Hãy khởi động dashboard local mà không mở trình duyệt mặc định và xác minh nó đang chạy. Tìm từ các nguồn công khai, mở nguồn gốc khi có thể, phân biệt tín hiệu nhu cầu thật với tín hiệu thời điểm như tuyển dụng, mở rộng hoặc gọi vốn. Tạo shortlist có bằng chứng, điểm phù hợp, nguồn và ngày kiểm tra; nhập shortlist vào dashboard; mở dashboard trong Comet để tôi duyệt. Không gửi tin nhắn hay liên hệ doanh nghiệp.
+Hãy khởi động dashboard local mà không mở trình duyệt mặc định và xác minh nó đang chạy. Tìm từ các nguồn công khai, mở nguồn gốc khi có thể, phân biệt tín hiệu nhu cầu thật với tín hiệu thời điểm như tuyển dụng, mở rộng hoặc gọi vốn. Tạo shortlist có bằng chứng, điểm phù hợp, nguồn và ngày kiểm tra; nhập shortlist vào dashboard; mở dashboard trong Comet để tôi duyệt. Ghi số điện thoại, email doanh nghiệp, LinkedIn và Facebook chỉ khi nguồn gốc công khai của doanh nghiệp hiển thị rõ, đồng thời lưu nguồn cho từng trường. Không đoán hoặc làm giàu thông tin còn thiếu. Không gửi tin nhắn hay liên hệ doanh nghiệp.
 ```
 
 Sau đó CMO có thể tiếp tục bằng tiếng Việt, ví dụ:

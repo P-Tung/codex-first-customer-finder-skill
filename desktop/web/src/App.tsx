@@ -20,6 +20,14 @@ type Lead = {
   target_role?: string;
   contact_url?: string;
   contact_label?: string;
+  contact_phone?: string;
+  contact_phone_source?: string;
+  contact_email?: string;
+  contact_email_source?: string;
+  contact_linkedin?: string;
+  contact_linkedin_source?: string;
+  contact_facebook?: string;
+  contact_facebook_source?: string;
   why_fit?: string;
   why_now?: string;
   next_step?: string;
@@ -124,10 +132,10 @@ export default function App() {
     setNotice('Đang kiểm tra và nhập dữ liệu...');
     try {
       const data = JSON.parse(await file.text());
-      const result = await api<{ added: number; duplicates: number }>('/api/import', {
+      const result = await api<{ added: number; duplicates: number; updated_contacts?: number }>('/api/import', {
         method: 'POST', body: JSON.stringify({ data }),
       });
-      setNotice(`Đã nhập ${result.added} doanh nghiệp${result.duplicates ? `, bỏ qua ${result.duplicates} doanh nghiệp trùng` : ''}.`);
+      setNotice(`Đã nhập ${result.added} doanh nghiệp${result.updated_contacts ? `, bổ sung thông tin liên hệ cho ${result.updated_contacts} lead` : ''}${result.duplicates > (result.updated_contacts || 0) ? `, giữ nguyên ${result.duplicates - (result.updated_contacts || 0)} lead trùng` : ''}.`);
       setFilter('all');
       setQuery('');
       await load('all', '');
@@ -197,7 +205,15 @@ export default function App() {
             <h3>{counts.all === 0 ? 'Bắt đầu với shortlist đầu tiên' : 'Chưa có doanh nghiệp trong mục này'}</h3>
             <p>{counts.all === 0 ? 'Khi AI hoàn thành tìm kiếm, nhập file analysis.json để xem bằng chứng và quản lý lead tại đây.' : 'Chọn mục trạng thái khác hoặc thay đổi từ khóa tìm kiếm.'}</p>
             {counts.all === 0 && <button className="button button-primary" onClick={() => fileRef.current?.click()}>Chọn file nghiên cứu</button>}
-          </div> : <div className="lead-list">{leads.map(lead => <LeadCard key={lead.id} lead={lead} busy={busyId === lead.id} onStatus={changeStatus} onSaveNote={saveNote} />)}</div>}
+          </div> : <div className="table-scroll" role="region" aria-label="Bảng quản lý doanh nghiệp, kéo ngang để xem đầy đủ cột" tabIndex={0}>
+            <table className="leads-table">
+              <thead>
+                <tr className="group-row"><th rowSpan={2} scope="col">Doanh nghiệp</th><th colSpan={5} scope="colgroup">Thông tin liên lạc công khai</th><th colSpan={2} scope="colgroup">Đánh giá</th><th colSpan={3} scope="colgroup">Theo dõi</th></tr>
+                <tr className="column-row"><th>Website</th><th>Điện thoại</th><th>Email</th><th>LinkedIn</th><th>Facebook</th><th>Điểm</th><th>Tín hiệu</th><th>Trạng thái</th><th>Bước tiếp theo</th><th>Ghi chú</th></tr>
+              </thead>
+              <tbody>{leads.map(lead => <LeadRow key={lead.id} lead={lead} busy={busyId === lead.id} onStatus={changeStatus} onSaveNote={saveNote} />)}</tbody>
+            </table>
+          </div>}
       </section>
 
       <footer className="footer"><span>Vietnam Lead Finder</span><span>Không gửi liên hệ tự động · Chỉ lưu trên máy này</span></footer>
@@ -205,57 +221,40 @@ export default function App() {
   );
 }
 
-function LeadCard({ lead, busy, onStatus, onSaveNote }: {
+function LeadRow({ lead, busy, onStatus, onSaveNote }: {
   lead: Lead; busy: boolean; onStatus: (lead: Lead, status: Status) => void;
   onSaveNote: (lead: Lead, note: string) => void;
 }) {
   const [draft, setDraft] = useState(lead.note || '');
   const [editing, setEditing] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   useEffect(() => setDraft(lead.note || ''), [lead.note]);
 
-  return <article className="lead-card">
-    <div className="lead-card-top">
-      <div className="company-heading">
-        <div className="company-avatar" aria-hidden="true">{lead.company.trim().charAt(0).toUpperCase()}</div>
-        <div className="company-copy">
-          <div className="company-tags"><span>{lead.industry || 'Doanh nghiệp'}</span>{lead.location && <><i>·</i><span>{lead.location}</span></>}</div>
-          <h3>{lead.company_url ? <a href={lead.company_url} target="_blank" rel="noreferrer">{lead.company}<span aria-hidden="true"> ↗</span></a> : lead.company}</h3>
-          <p>{lead.target_role || 'Chưa xác định vai trò liên hệ'}</p>
-        </div>
-      </div>
-      <div className="score-pill"><strong>{lead.score}</strong><span>/100</span><small>PHÙ HỢP</small></div>
-    </div>
+  return <>
+    <tr className="lead-row">
+      <th scope="row" className="company-cell"><strong>{lead.company_url ? <a href={lead.company_url} target="_blank" rel="noreferrer">{lead.company} ↗</a> : lead.company}</strong><span>{[lead.industry, lead.location, lead.target_role].filter(Boolean).join(' · ') || 'Doanh nghiệp'}</span><button className="row-detail-toggle" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? 'Ẩn chi tiết' : 'Xem bằng chứng'}</button></th>
+      <td><ContactValue href={lead.company_url} value={lead.company_url ? 'Mở website' : ''} empty="Chưa tìm thấy" /></td>
+      <td><ContactValue href={lead.contact_phone ? `tel:${lead.contact_phone}` : undefined} value={lead.contact_phone} source={lead.contact_phone_source} empty="Chưa tìm thấy" /></td>
+      <td><ContactValue href={lead.contact_email ? `mailto:${lead.contact_email}` : undefined} value={lead.contact_email} source={lead.contact_email_source} empty="Chưa tìm thấy" /></td>
+      <td><ContactValue href={lead.contact_linkedin} value={lead.contact_linkedin ? 'Mở trang' : ''} source={lead.contact_linkedin_source} empty="Chưa tìm thấy" /></td>
+      <td><ContactValue href={lead.contact_facebook} value={lead.contact_facebook ? 'Mở trang' : ''} source={lead.contact_facebook_source} empty="Chưa tìm thấy" /></td>
+      <td><span className="table-score">{lead.score}<small>/100</small></span></td>
+      <td className="signal-cell" title={lead.pain_signal || lead.evidence}>{lead.pain_signal || lead.evidence || 'Chưa có mô tả tín hiệu'}</td>
+      <td><select className={`table-status status-${lead.status}`} value={lead.status} disabled={busy} onChange={event => onStatus(lead, event.target.value as Status)} aria-label={`Trạng thái ${lead.company}`}><option value="new">Mới</option><option value="contacted">Đã liên hệ</option><option value="ignore">Bỏ qua</option></select></td>
+      <td className="next-step-cell" title={lead.next_step}>{lead.next_step || 'Kiểm tra nguồn trước khi liên hệ'}</td>
+      <td><button className="note-toggle" aria-expanded={editing} onClick={() => setEditing(value => !value)}>{editing ? 'Đóng' : lead.note ? 'Sửa ghi chú' : '+ Ghi chú'}</button></td>
+    </tr>
+    {(expanded || editing) && <tr className="detail-row"><td colSpan={11}>
+      {expanded && <div className="expanded-details"><div><b>Tín hiệu:</b> {lead.pain_signal || lead.evidence || 'Chưa có'}</div><div><b>Vì sao phù hợp:</b> {lead.why_fit || 'Chưa có'}</div><div><b>Vì sao lúc này:</b> {lead.why_now || 'Chưa có'}</div>{lead.caution && <div className="caution"><b>Lưu ý:</b> {lead.caution}</div>}
+        {lead.source_url && <a href={lead.source_url} target="_blank" rel="noreferrer">Mở nguồn: {lead.source_title || lead.source_url} ↗</a>}<p className="evidence-meta">{lead.source_type || 'Nguồn công khai'} · Tín hiệu: {lead.signal_date || 'Chưa xác định'} · Kiểm tra: {lead.checked_at || 'Không có dữ liệu'}</p>{lead.dimensions_json && <ScoreBreakdown value={lead.dimensions_json} />}</div>}
+      {editing && <div className="note-editor"><label htmlFor={`note-${lead.id}`}>Ghi chú nội bộ</label><textarea id={`note-${lead.id}`} value={draft} maxLength={4000} onChange={event => setDraft(event.target.value)} placeholder="Ghi lại kết quả trao đổi hoặc việc cần làm..." /><div><span>{draft.length}/4000</span><button className="button button-dark" disabled={busy || draft === (lead.note || '')} onClick={() => onSaveNote(lead, draft)}>Lưu ghi chú</button></div></div>}
+    </td></tr>}
+  </>;
+}
 
-    <div className="signal-box"><span className="signal-dot" /><div><p className="field-label">TÍN HIỆU CÔNG KHAI</p><p>{lead.pain_signal || lead.evidence || 'Chưa có mô tả tín hiệu.'}</p></div></div>
-
-    <div className="lead-details">
-      <div><p className="field-label">VÌ SAO PHÙ HỢP</p><p>{lead.why_fit || 'Xem lại hồ sơ doanh nghiệp.'}</p></div>
-      <div><p className="field-label">VÌ SAO LÚC NÀY</p><p>{lead.why_now || 'Chưa có tín hiệu thời điểm.'}</p></div>
-      <div><p className="field-label">BƯỚC TIẾP THEO</p><p>{lead.next_step || 'Kiểm tra nguồn trước khi liên hệ.'}</p></div>
-      {lead.caution && <div className="caution"><p className="field-label">LƯU Ý</p><p>{lead.caution}</p></div>}
-    </div>
-
-    <div className="source-row">
-      {lead.source_url ? <a href={lead.source_url} target="_blank" rel="noreferrer" className="source-link"><span aria-hidden="true">↗</span> {lead.source_title || 'Mở nguồn gốc'}</a> : <span className="source-missing">Chưa có đường dẫn nguồn</span>}
-      {lead.contact_url && <a href={lead.contact_url} target="_blank" rel="noreferrer" className="contact-link">{lead.contact_label || 'Kênh liên hệ công khai'} ↗</a>}
-      <span className="lead-stage">{lead.stage || 'Tín hiệu công khai'}</span>
-    </div>
-
-    <details className="evidence-details">
-      <summary>Xem bằng chứng và ngày kiểm tra</summary>
-      {lead.evidence && <div><p className="field-label">NỘI DUNG BẰNG CHỨNG</p><p>{lead.evidence}</p></div>}
-      <p className="evidence-meta">{lead.source_type || 'Nguồn công khai'} · Tín hiệu: {lead.signal_date || 'Chưa xác định'} · Kiểm tra: {lead.checked_at || 'Không có dữ liệu'}</p>
-      {lead.dimensions_json && <ScoreBreakdown value={lead.dimensions_json} />}
-    </details>
-
-    <div className="card-footer">
-      <label className="status-control"><span>Trạng thái</span><select value={lead.status} disabled={busy} onChange={event => onStatus(lead, event.target.value as Status)} aria-label={`Trạng thái ${lead.company}`}>
-        <option value="new">Mới</option><option value="contacted">Đã liên hệ</option><option value="ignore">Bỏ qua</option>
-      </select></label>
-      <button className="note-toggle" aria-expanded={editing} onClick={() => setEditing(value => !value)}>{editing ? 'Đóng ghi chú' : lead.note ? 'Sửa ghi chú' : '＋ Ghi chú'}</button>
-    </div>
-    {editing && <div className="note-editor"><label htmlFor={`note-${lead.id}`}>Ghi chú nội bộ</label><textarea id={`note-${lead.id}`} value={draft} maxLength={4000} onChange={event => setDraft(event.target.value)} placeholder="Ví dụ: đã liên hệ qua form website ngày 27/10..." /><div><span>{draft.length}/4000</span><button className="button button-dark" disabled={busy || draft === (lead.note || '')} onClick={() => onSaveNote(lead, draft)}>Lưu ghi chú</button></div></div>}
-  </article>;
+function ContactValue({ href, value, source, empty }: { href?: string; value?: string; source?: string; empty: string }) {
+  if (!value) return <span className="contact-empty">{empty}</span>;
+  return <span className="contact-wrap">{href ? <a className="contact-value" href={href} target={href.startsWith('http') ? '_blank' : undefined} rel={href.startsWith('http') ? 'noreferrer' : undefined}>{value}</a> : <span className="contact-value">{value}</span>}{source && <a className="contact-source" href={source} target="_blank" rel="noreferrer">Nguồn</a>}</span>;
 }
 
 function ScoreBreakdown({ value }: { value: string }) {

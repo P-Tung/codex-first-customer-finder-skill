@@ -43,6 +43,7 @@ Use multiple query angles and source types, including accessible public X discus
 - Use public, intentionally shared professional or business information only.
 - Do not bypass login walls, paywalls, access controls, rate limits, or robots restrictions.
 - Do not use data brokers, leaked datasets, private groups, personal email discovery, phone enrichment, or sensitive personal information.
+- When an original public source explicitly lists company contact details, preserve the business phone, role-based/business email, official LinkedIn page, and official Facebook page in `public_contacts`, with the exact public `source_url` for each field. Leave unavailable fields blank. Never guess or enrich contact details.
 - Do not infer protected traits or target people using health, financial hardship, political belief, sexuality, religion, or other sensitive attributes.
 - Prefer companies, public professional profiles, public requests, and community posts relevant to the product.
 - Quote minimally and paraphrase by default. Link every material pain or timing signal.

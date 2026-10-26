@@ -19,7 +19,7 @@ Tell it which prospects fit. The next search uses your explicit feedback and loc
 
 ## Local marketing dashboard
 
-This repository also includes an optional local dashboard for a marketing teammate. It stores leads in SQLite on the Mac, imports the skill's validated `analysis.json`, tracks `Mới`, `Đã liên hệ`, and `Bỏ qua`, and exports `.xlsx` or `.csv`. The web server binds only to `127.0.0.1`; there is no VPS or shared database.
+This repository also includes an optional local dashboard for a marketing teammate. It stores leads in SQLite on the Mac, imports the skill's validated `analysis.json`, presents leads in a horizontally scrollable spreadsheet-style table, groups public company contact columns for website, phone, business email, LinkedIn, and Facebook, tracks `Mới`, `Đã liên hệ`, and `Bỏ qua`, and exports `.xlsx` or `.csv`. Contact fields are populated only when an original public source explicitly lists the company detail; each field retains its source. The web server binds only to `127.0.0.1`; there is no VPS or shared database.
 
 Requirements: macOS and Python 3.9+. The compiled React dashboard is included in the repo. Node.js 20.19+ with npm is only needed to rebuild the UI.
 
