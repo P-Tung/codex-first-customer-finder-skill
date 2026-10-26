@@ -1,18 +1,22 @@
-# Prompt dành cho CMO
+# Prompt dùng trong Codex Desktop
 
-Dùng prompt này trong **Codex Desktop** sau khi mở repo `codex-first-customer-finder-skill` và cấp quyền chạy lệnh local. ChatGPT web chat thông thường không có quyền tự cài phần mềm lên Mac.
+Mở repo Vietnam Lead Finder trong **Codex Desktop**. Khi Codex hỏi quyền truy cập thư mục hoặc cho phép cài LaunchAgent local, hãy xem đúng yêu cầu rồi chấp thuận để dashboard chạy trên máy này. Không cần tự mở Terminal.
+
+Dán prompt sau:
 
 ```text
-Hãy cài và chạy Vietnam Lead Finder trong repo đang mở.
+Hãy dùng hướng dẫn trong AGENTS.md và tìm khách hàng tiềm năng là các doanh nghiệp SME tại Việt Nam có dấu hiệu công khai cho thấy họ có thể cần agency setup AI automation.
 
-1. Đọc README.md và làm theo hướng dẫn trong first-customer-finder/SKILL.md; dùng công cụ tìm kiếm web sẵn có trong môi trường AI.
-2. Chạy ./lead-finder setup nếu chưa cài, sau đó chạy ./lead-finder start.
-3. Nếu tôi chưa cung cấp chân dung khách hàng, hãy hỏi tôi mô tả bằng tiếng Việt.
-4. Nghiên cứu doanh nghiệp Việt Nam theo mô tả đó. Giữ lại nguồn gốc, bằng chứng, ngày kiểm tra và điểm phù hợp cho từng doanh nghiệp. Không tự gửi tin nhắn hay liên hệ.
-5. Tạo analysis.json theo schema trong first-customer-finder/references/report-artifact.md, chạy generator của skill để xác thực, rồi nhập bằng ./lead-finder import /đường/dẫn/analysis.json.
-6. Mở http://127.0.0.1:4317 và báo cho tôi khi dashboard có kết quả.
+Trước khi tìm, chỉ hỏi tôi những thông tin còn thiếu có thể làm thay đổi đáng kể kết quả. Nếu tôi chưa đặt tiêu chuẩn chấm điểm, hãy dùng mặc định của skill và nói rõ các giả định. Không giới hạn ngành hay tự đặt thêm tiêu chí không được yêu cầu.
 
-Khi tôi yêu cầu tìm thêm, chạy ./lead-finder brief để đọc các trạng thái đã lưu, giữ nguyên tiêu chí đã nêu, tránh doanh nghiệp tôi đã đánh dấu Bỏ qua hoặc Đã liên hệ, và không ghi đè dữ liệu cũ. Chỉ cập nhật trạng thái khi tôi yêu cầu.
+Hãy khởi động dashboard local mà không mở trình duyệt mặc định và xác minh nó đang chạy. Tìm từ các nguồn công khai, mở nguồn gốc khi có thể, phân biệt tín hiệu nhu cầu thật với tín hiệu thời điểm như tuyển dụng, mở rộng hoặc gọi vốn. Tạo shortlist có bằng chứng, điểm phù hợp, nguồn và ngày kiểm tra; nhập shortlist vào dashboard; mở dashboard trong Comet để tôi duyệt. Không gửi tin nhắn hay liên hệ doanh nghiệp.
 ```
 
-Nếu AI đang dùng không có quyền chạy lệnh trên máy, người dùng hoặc quản trị viên cần chạy setup và start một lần. Dashboard và database sau đó chạy local.
+Sau đó CMO có thể tiếp tục bằng tiếng Việt, ví dụ:
+
+- `Ưu tiên doanh nghiệp F&B ở TP.HCM, chỉ lấy lead có tín hiệu mạnh, tối đa 8 công ty.`
+- `Tìm thêm 5 công ty, bỏ qua doanh nghiệp tôi đã liên hệ hoặc đánh dấu Bỏ qua.`
+- `Đánh dấu [tên công ty] là Đã liên hệ và ghi chú [kết quả].`
+- `Xuất danh sách hiện tại ra Excel.`
+
+Codex cần quyền truy cập repo, công cụ tìm kiếm web được bật và quyền chạy lệnh local. Dashboard lưu dữ liệu trên máy CMO, chỉ nghe trên `127.0.0.1`; nó không cần VPS. Nếu Codex không điều khiển được trình duyệt, mở `http://127.0.0.1:4317` trong Comet.

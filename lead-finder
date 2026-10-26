@@ -11,7 +11,7 @@ usage() {
     '' \
     'Commands:' \
     '  ./lead-finder setup                 Install UI dependencies and build the app' \
-    '  ./lead-finder start [--port PORT] [--no-open]   Start the server (open dashboard unless disabled)' \
+    '  ./lead-finder start [--port PORT] [--no-open]   Start and verify the local dashboard' \
     '  ./lead-finder stop                  Stop this app' \
     '  ./lead-finder status                Check whether the app is running' \
     '  ./lead-finder brief                 Print current lead statuses for the AI assistant' \
@@ -91,34 +91,13 @@ case "${1:-help}" in
       shift
     done
     if [ ! -f "$ROOT_DIR/desktop/web/dist/index.html" ]; then setup; fi
-    mkdir -p "$APP_DIR"
-    if [ -f "$APP_DIR/server.pid" ] && kill -0 "$(sed -n '1p' "$APP_DIR/server.pid")" 2>/dev/null; then
-      if check_running >/dev/null; then
-        printf 'Dashboard is already running at http://127.0.0.1:%s\n' "$PORT"
-        if [ "$OPEN_BROWSER" -eq 1 ]; then open "http://127.0.0.1:$PORT" >/dev/null 2>&1 || true; fi
-        exit 0
-      fi
-    fi
-    nohup python3 "$ROOT_DIR/desktop/server.py" --port "$PORT" >"$APP_DIR/server.log" 2>&1 </dev/null &
-    SERVER_PID=$!
-    printf '%s\n' "$SERVER_PID" > "$APP_DIR/server.pid"
-    ATTEMPT=0
-    until check_running >/dev/null 2>&1; do
-      ATTEMPT=$((ATTEMPT + 1))
-      if [ "$ATTEMPT" -ge 30 ]; then
-        printf '%s\n' 'The server did not start. See ~/Library/Application Support/VietnamLeadFinder/server.log' >&2
-        exit 1
-      fi
-      sleep 1
-    done
-    printf 'Dashboard is ready at http://127.0.0.1:%s\n' "$PORT"
-    printf 'Local database: %s/leads.sqlite3\n' "$APP_DIR"
+    python3 "$ROOT_DIR/desktop/launch_agent.py" start --port "$PORT"
     if [ "$OPEN_BROWSER" -eq 1 ]; then
       open "http://127.0.0.1:$PORT" >/dev/null 2>&1 || printf 'Open http://127.0.0.1:%s in your browser.\n' "$PORT"
     fi
     ;;
   status)
-    if check_running; then :; else printf '%s\n' 'Dashboard is not running.'; exit 1; fi
+    python3 "$ROOT_DIR/desktop/launch_agent.py" status --port "$PORT"
     ;;
   brief)
     python3 - "$PORT" <<'PY'
@@ -139,24 +118,7 @@ except Exception as error:
 PY
     ;;
   stop)
-    if [ ! -f "$APP_DIR/server.pid" ]; then
-      printf '%s\n' 'No Vietnam Lead Finder server is running.'
-      exit 0
-    fi
-    SERVER_PID=$(sed -n '1p' "$APP_DIR/server.pid")
-    if ! printf '%s' "$SERVER_PID" | awk '/^[0-9]+$/ { ok=1 } END { exit !ok }'; then
-      printf '%s\n' 'Invalid app PID file. Check it manually before stopping a process.' >&2
-      exit 1
-    fi
-    if kill -0 "$SERVER_PID" 2>/dev/null; then
-      COMMAND_LINE=$(ps -p "$SERVER_PID" -o command= 2>/dev/null || true)
-      case "$COMMAND_LINE" in
-        *"$ROOT_DIR/desktop/server.py"*) kill "$SERVER_PID" ;;
-        *) printf '%s\n' 'PID does not belong to this app. Leaving it running.' >&2; exit 1 ;;
-      esac
-    fi
-    python3 -c 'from pathlib import Path; Path(__import__("sys").argv[1]).unlink(missing_ok=True)' "$APP_DIR/server.pid"
-    printf '%s\n' 'Vietnam Lead Finder stopped.'
+    python3 "$ROOT_DIR/desktop/launch_agent.py" stop
     ;;
   import)
     shift

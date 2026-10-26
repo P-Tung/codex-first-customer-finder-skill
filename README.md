@@ -21,16 +21,18 @@ Tell it which prospects fit. The next search uses your explicit feedback and loc
 
 This repository also includes an optional local dashboard for a marketing teammate. It stores leads in SQLite on the Mac, imports the skill's validated `analysis.json`, tracks `Mới`, `Đã liên hệ`, and `Bỏ qua`, and exports `.xlsx` or `.csv`. The web server binds only to `127.0.0.1`; there is no VPS or shared database.
 
-Requirements to run: macOS and Python 3.9+. The compiled React dashboard is included in the repo. Node.js 20.19+ with npm is only needed to rebuild the UI.
+Requirements: macOS and Python 3.9+. The compiled React dashboard is included in the repo. Node.js 20.19+ with npm is only needed to rebuild the UI.
 
 ```bash
 ./lead-finder setup
 ./lead-finder start
 ```
 
-Add `--no-open` to leave the browser closed, or `--port 4320` to use another local port.
+The launcher uses a per-user macOS LaunchAgent so the server stays available after a Codex command ends. It verifies the health endpoint before reporting success. The server listens only on `127.0.0.1`; the database and log stay in `~/Library/Application Support/VietnamLeadFinder/`.
 
-Research is performed by the AI running the skill. To guide a non-technical teammate, see [desktop/CMO-PROMPT.md](desktop/CMO-PROMPT.md). Codex Desktop (or another local agent with terminal access) can run setup; an ordinary ChatGPT web chat cannot install software onto a Mac. On first use, the local agent needs permission to run setup commands. The dashboard itself requires no AI API key.
+Add `--no-open` to leave the browser closed, or `--port 4320` to use another local port. Use `./lead-finder status` to verify it is running and `./lead-finder stop` to stop the service and remove its login registration.
+
+Research is performed by the AI running the skill. Repository-level instructions in [AGENTS.md](AGENTS.md) guide Codex through setup, public research, report generation, import, and dashboard verification. To hand it to a non-technical teammate, see [desktop/CMO-PROMPT.md](desktop/CMO-PROMPT.md). She opens this repo in Codex Desktop and pastes the prompt, then responds to any required local access approval. An ordinary ChatGPT web chat cannot install software onto a Mac. The dashboard itself requires no AI API key; live research depends on the web tools enabled for her Codex account.
 
 Import research results with:
 
