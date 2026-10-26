@@ -28,6 +28,8 @@ Requirements to run: macOS and Python 3.9+. The compiled React dashboard is incl
 ./lead-finder start
 ```
 
+Add `--no-open` to leave the browser closed, or `--port 4320` to use another local port.
+
 Research is performed by the AI running the skill. To guide a non-technical teammate, see [desktop/CMO-PROMPT.md](desktop/CMO-PROMPT.md). Codex Desktop (or another local agent with terminal access) can run setup; an ordinary ChatGPT web chat cannot install software onto a Mac. On first use, the local agent needs permission to run setup commands. The dashboard itself requires no AI API key.
 
 Import research results with:

@@ -11,7 +11,7 @@ usage() {
     '' \
     'Commands:' \
     '  ./lead-finder setup                 Install UI dependencies and build the app' \
-    '  ./lead-finder start [--port PORT]   Start the local server and open the dashboard' \
+    '  ./lead-finder start [--port PORT] [--no-open]   Start the server (open dashboard unless disabled)' \
     '  ./lead-finder stop                  Stop this app' \
     '  ./lead-finder status                Check whether the app is running' \
     '  ./lead-finder brief                 Print current lead statuses for the AI assistant' \
@@ -74,22 +74,28 @@ case "${1:-help}" in
     ;;
   start)
     shift
-    if [ "${1:-}" = "--port" ]; then
-      PORT="${2:-}"
-      if ! printf '%s' "$PORT" | awk '/^[0-9]+$/ { if ($0 >= 1024 && $0 <= 65535) ok=1 } END { exit !ok }'; then
-        printf '%s\n' 'Port must be a number from 1024 to 65535.' >&2
-        exit 2
-      fi
-    elif [ "$#" -gt 0 ]; then
-      usage >&2
-      exit 2
-    fi
+    OPEN_BROWSER=1
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --port)
+          shift
+          PORT="${1:-}"
+          if ! printf '%s' "$PORT" | awk '/^[0-9]+$/ { if ($0 >= 1024 && $0 <= 65535) ok=1 } END { exit !ok }'; then
+            printf '%s\n' 'Port must be a number from 1024 to 65535.' >&2
+            exit 2
+          fi
+          ;;
+        --no-open) OPEN_BROWSER=0 ;;
+        *) usage >&2; exit 2 ;;
+      esac
+      shift
+    done
     if [ ! -f "$ROOT_DIR/desktop/web/dist/index.html" ]; then setup; fi
     mkdir -p "$APP_DIR"
     if [ -f "$APP_DIR/server.pid" ] && kill -0 "$(sed -n '1p' "$APP_DIR/server.pid")" 2>/dev/null; then
       if check_running >/dev/null; then
         printf 'Dashboard is already running at http://127.0.0.1:%s\n' "$PORT"
-        open "http://127.0.0.1:$PORT" >/dev/null 2>&1 || true
+        if [ "$OPEN_BROWSER" -eq 1 ]; then open "http://127.0.0.1:$PORT" >/dev/null 2>&1 || true; fi
         exit 0
       fi
     fi
@@ -107,7 +113,9 @@ case "${1:-help}" in
     done
     printf 'Dashboard is ready at http://127.0.0.1:%s\n' "$PORT"
     printf 'Local database: %s/leads.sqlite3\n' "$APP_DIR"
-    open "http://127.0.0.1:$PORT" >/dev/null 2>&1 || printf 'Open http://127.0.0.1:%s in your browser.\n' "$PORT"
+    if [ "$OPEN_BROWSER" -eq 1 ]; then
+      open "http://127.0.0.1:$PORT" >/dev/null 2>&1 || printf 'Open http://127.0.0.1:%s in your browser.\n' "$PORT"
+    fi
     ;;
   status)
     if check_running; then :; else printf '%s\n' 'Dashboard is not running.'; exit 1; fi
