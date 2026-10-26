@@ -82,6 +82,35 @@ Refresh the existing shortlist, recheck the sources, and include the HTML report
 
 Search may use accessible public X posts, GitHub issues, forums, product reviews, company pages, and search engines. It does not promise access to every platform, bypass login walls, or qualify candidates from snippets alone. Blocked sources are reported as coverage gaps.
 
+## Configurable target and quality profiles
+
+Each run may provide its own `target_profile` and `quality_profile`. This keeps the core skill reusable for many users without forcing one ICP or one definition of quality.
+
+```json
+{
+  "target_profile": {
+    "geography": ["Vietnam"],
+    "industries": ["F&B", "SaaS"],
+    "company_size": ["SME", "startup"],
+    "buyer_roles": ["founder", "operations"],
+    "exclude": ["government procurement"]
+  },
+  "quality_profile": {
+    "weights": {
+      "pain_strength": 30,
+      "product_fit": 25,
+      "timing": 20,
+      "reachability": 15,
+      "evidence_quality": 10
+    },
+    "minimum_score": 65,
+    "require_contact_route": true
+  }
+}
+```
+
+When the geography is Vietnam, read `first-customer-finder/references/vietnam-business-sources.md`. Directories such as Trang Vàng help discover and corroborate company identity, while a separate pain, intent, or timing signal is still required for a qualified shortlist.
+
 ## What you receive
 
 | Output | Purpose |

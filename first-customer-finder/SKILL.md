@@ -8,8 +8,11 @@ description: Find evidence-backed potential first customers, beta users, or desi
 Turn a startup URL or product description into a short, evidence-backed list of plausible first customers. Use public signals, preserve privacy, and distinguish a prospect from a confirmed buyer.
 
 Read [references/research-framework.md](references/research-framework.md) before researching or scoring prospects and [references/report-artifact.md](references/report-artifact.md) before creating the final report. For saved history, feedback, or a repeat search, also read [references/feedback-and-history.md](references/feedback-and-history.md).
+When the target geography is Vietnam, also read [references/vietnam-business-sources.md](references/vietnam-business-sources.md).
 
-Use English by default; follow an explicit language request. Keep the chat handoff short and put the useful detail in the report. Research requires available web search/browser tools; the bundled Python helpers only validate, export, and manage local files. If live browsing is unavailable, report that limitation instead of inventing leads.
+Use the user's configured language and geography. For Vietnam business research, use Vietnamese with diacritics, Vietnamese without diacritics, and English query variants. Keep the chat handoff short and put the useful detail in the report. Research requires available web search/browser tools; the bundled Python helpers only validate, export, and manage local files. If live browsing is unavailable, report that limitation instead of inventing leads.
+
+Each run may provide an optional `target_profile` and `quality_profile`. Treat them as user-owned criteria, not global defaults. The target profile defines the intended companies, roles, geography, industry, stage, and exclusions. The quality profile defines scoring weights, minimum score, and whether a verified public contact route is required. Preserve the default profile when these fields are omitted.
 
 ## Workflow
 
@@ -22,6 +25,8 @@ Use English by default; follow an explicit language request. Keep the chat hando
 - Use one stable product-specific workspace folder. If its history exists, inspect the saved preferences and excluded prospects before searching. Never load another product's history just because it is nearby. State briefly where history will be saved; respect requests for no saved history.
 
 ### 2. Build a public-signal search plan
+
+If the geography is Vietnam, use a two-stage plan: first discover and corroborate the company through a public business directory, official registry, public business directory, or company website; then find a separate pain, intent, or timing signal. A directory record alone is not purchase intent.
 
 Search current public sources for:
 

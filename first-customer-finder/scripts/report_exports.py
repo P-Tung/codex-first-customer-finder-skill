@@ -38,6 +38,8 @@ def build_markdown(data):
               md(data.get("verdict")), "", "## Search brief", "",
               f"- **Target:** {md(data.get('target_customer'))}",
               f"- **Scope:** {md(data.get('search_scope'))}",
+              f"- **Target profile:** {md(format_profile(data.get('target_profile', {})))}",
+              f"- **Quality profile:** {md(format_quality(data.get('quality_profile', {})))}",
               "- Scores prioritize research; they are not purchase probabilities.", ""]
     history = data.get("history_summary")
     if history:
@@ -102,6 +104,20 @@ def build_markdown(data):
     lines += ["", "## Refine the next round", "", 'Reply with the ranks from this report, for example: “P1 fits; P2 does not because …”. State any general preference explicitly.', "",
               "History and status changes stay local. Feedback does not train a model or send messages.", ""]
     return "\n".join(lines)
+
+
+def format_profile(profile):
+    if not isinstance(profile, dict) or not profile:
+        return "Default target profile"
+    return "; ".join(f"{key}={value}" for key, value in profile.items())
+
+
+def format_quality(profile):
+    if not isinstance(profile, dict) or not profile:
+        return "Default weights, minimum score 50"
+    weights = profile.get("weights", {})
+    weight_text = ", ".join(f"{key} {value}%" for key, value in weights.items())
+    return f"minimum {profile.get('minimum_score', 50)}/100; {weight_text}; contact route required={profile.get('require_contact_route', False)}"
 
 
 CSV_FIELDS = ["record_type", "demo", "id", "name", "entity_url", "score", "stage", "target_role", "role_basis",

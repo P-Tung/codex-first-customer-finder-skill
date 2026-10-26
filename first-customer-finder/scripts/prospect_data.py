@@ -16,8 +16,56 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 WEIGHTS = {"pain_strength": 25, "product_fit": 25, "timing": 20,
            "reachability": 15, "evidence_quality": 15}
+DIMENSION_KEYS = tuple(WEIGHTS)
 STATUSES = ("new", "contacted", "replied", "not_interested", "customer")
 FEEDBACK = ("keep", "maybe", "reject")
+
+
+def normalize_quality_profile(raw):
+    """Return a validated per-search quality profile with safe defaults."""
+    if raw is None:
+        raw = {}
+    if not isinstance(raw, dict):
+        raise ValueError("quality_profile must be an object")
+    profile = copy.deepcopy(raw)
+    weights = profile.get("weights", copy.deepcopy(WEIGHTS))
+    if not isinstance(weights, dict) or set(weights) != set(DIMENSION_KEYS):
+        raise ValueError("quality_profile.weights must contain exactly the five scoring dimensions")
+    normalized_weights = {}
+    for key in DIMENSION_KEYS:
+        value = weights.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+            raise ValueError(f"quality_profile.weights.{key} must be a finite non-negative number")
+        normalized_weights[key] = value
+    if round(sum(normalized_weights.values()), 6) != 100:
+        raise ValueError("quality_profile.weights must total 100")
+    minimum_score = profile.get("minimum_score", 50)
+    if isinstance(minimum_score, bool) or not isinstance(minimum_score, (int, float)) or not 0 <= minimum_score <= 100:
+        raise ValueError("quality_profile.minimum_score must be between 0 and 100")
+    require_contact_route = profile.get("require_contact_route", False)
+    if not isinstance(require_contact_route, bool):
+        raise ValueError("quality_profile.require_contact_route must be a boolean")
+    profile["weights"] = normalized_weights
+    profile["minimum_score"] = minimum_score
+    profile["require_contact_route"] = require_contact_route
+    return profile
+
+
+def normalize_target_profile(raw):
+    """Validate user-controlled target criteria without imposing one ICP."""
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ValueError("target_profile must be an object")
+    for key, value in raw.items():
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError("target_profile keys must be nonempty text")
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            continue
+        if isinstance(value, list) and all(isinstance(item, (str, int, float, bool)) for item in value):
+            continue
+        raise ValueError(f"target_profile.{key} must be scalar text or an array of scalar values")
+    return copy.deepcopy(raw)
 
 
 def timestamp():
@@ -120,6 +168,10 @@ def normalize_report(raw):
         text_field(data, field)
     if not isinstance(data.get("demo", False), bool):
         raise ValueError("demo must be a boolean")
+    data["target_profile"] = normalize_target_profile(data.get("target_profile"))
+    data["quality_profile"] = normalize_quality_profile(data.get("quality_profile"))
+    weights = data["quality_profile"]["weights"]
+    minimum_score = data["quality_profile"]["minimum_score"]
     generated = iso_date(data.get("generated_at"), "generated_at", date.today())
     known = set()
     for index, p in enumerate(data.get("prospects", []), 1):
@@ -167,11 +219,13 @@ def normalize_report(raw):
                     raise ValueError("not_found route cannot contain a guessed URL")
                 if dimensions["reachability"] > 1:
                     raise ValueError("No verified route requires reachability <= 1")
+            if data["quality_profile"]["require_contact_route"] and route["status"] != "verified":
+                raise ValueError("quality_profile requires a verified public contact route")
             if p["cta"].strip() not in p["opener"]:
                 raise ValueError("opener must include its concrete CTA verbatim")
-            p["score"] = round(sum(dimensions[k] / 5 * w for k, w in WEIGHTS.items()))
-            if p["score"] < 50:
-                raise ValueError("Score below 50: move this candidate outside the primary shortlist")
+            p["score"] = round(sum(dimensions[k] / 5 * weights[k] for k in DIMENSION_KEYS))
+            if p["score"] < minimum_score:
+                raise ValueError(f"Score below configured minimum_score {minimum_score}: move this candidate outside the primary shortlist")
             if not isinstance(p.get("additional_sources", []), list):
                 raise ValueError("additional_sources must be an array")
             for source in p.get("additional_sources", []):

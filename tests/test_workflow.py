@@ -33,6 +33,40 @@ class DataTests(unittest.TestCase):
         self.assertEqual([p["score"] for p in result["prospects"]], sorted([p["score"] for p in result["prospects"]], reverse=True))
         self.assertEqual(raw["prospects"][0]["score"], 1)
 
+    def test_custom_quality_profile_changes_score_and_threshold(self):
+        raw = fixture()
+        raw["quality_profile"] = {
+            "weights": {
+                "pain_strength": 10,
+                "product_fit": 20,
+                "timing": 20,
+                "reachability": 30,
+                "evidence_quality": 20
+            },
+            "minimum_score": 55,
+            "require_contact_route": False
+        }
+        result = normalize_report(raw)
+        self.assertEqual(result["prospects"][0]["score"], 86)
+        self.assertEqual(result["quality_profile"]["minimum_score"], 55)
+        raw["quality_profile"]["require_contact_route"] = True
+        raw["prospects"][0]["contact_route"] = {"status": "not_found", "note": "No suitable public route"}
+        raw["prospects"][0]["dimensions"]["reachability"] = 1
+        with self.assertRaisesRegex(ValueError, "contact route"):
+            normalize_report(raw)
+
+    def test_quality_profile_weights_must_total_one_hundred(self):
+        raw = fixture()
+        raw["quality_profile"] = {"weights": {key: 1 for key in ("pain_strength", "product_fit", "timing", "reachability", "evidence_quality")}}
+        with self.assertRaisesRegex(ValueError, "total 100"):
+            normalize_report(raw)
+
+    def test_target_profile_is_preserved(self):
+        raw = fixture()
+        raw["target_profile"] = {"industries": ["F&B", "SaaS"], "locations": ["Hồ Chí Minh"]}
+        result = normalize_report(raw)
+        self.assertEqual(result["target_profile"]["locations"], ["Hồ Chí Minh"])
+
     def test_identity_normalization(self):
         self.assertEqual(prospect_id("http://www.example.com/team/?utm_source=x#reply"), prospect_id("https://example.com/team"))
         self.assertEqual(prospect_id("https://twitter.com/founder"), prospect_id("https://x.com/founder/"))
