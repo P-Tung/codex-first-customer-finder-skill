@@ -183,11 +183,11 @@ try:
     with urllib.request.urlopen(request, timeout=10) as response:
         result = json.load(response)
     print(f"Imported {result['added']} leads; skipped {result['duplicates']} duplicates.")
-except urllib.error.URLError as error:
-    print(f"Cannot reach the local app at port {port}. Start it with ./lead-finder start first. ({error})", file=sys.stderr)
-    raise SystemExit(1)
 except urllib.error.HTTPError as error:
     print(error.read().decode("utf-8", errors="replace"), file=sys.stderr)
+    raise SystemExit(1)
+except urllib.error.URLError as error:
+    print(f"Cannot reach the local app at port {port}. Start it with ./lead-finder start first. ({error})", file=sys.stderr)
     raise SystemExit(1)
 PY
     ;;
