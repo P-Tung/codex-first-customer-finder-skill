@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useRef, useState } from 'react';
+import { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from 'react';
 
 type Status = 'new' | 'contacted' | 'ignore';
 type Lead = {
@@ -48,6 +48,28 @@ type Lead = {
 type Counts = Record<'all' | 'average' | Status, number>;
 type Filter = 'all' | Status;
 
+const TABLE_COLUMNS = [
+  { key: 'company', label: 'Doanh nghiệp', initial: 17, min: 13 },
+  { key: 'website', label: 'Website', initial: 10, min: 8 },
+  { key: 'phone', label: 'Điện thoại', initial: 9, min: 8 },
+  { key: 'email', label: 'Email', initial: 13, min: 9 },
+  { key: 'socials', label: 'Mạng xã hội', initial: 12, min: 8 },
+  { key: 'score', label: 'Điểm', initial: 6, min: 5 },
+  { key: 'signal', label: 'Tín hiệu', initial: 14, min: 10 },
+  { key: 'status', label: 'Trạng thái', initial: 8, min: 7 },
+  { key: 'next', label: 'Bước tiếp theo', initial: 11, min: 10 },
+];
+const DEFAULT_COLUMN_WIDTHS = TABLE_COLUMNS.map(column => column.initial);
+const COLUMN_WIDTHS_KEY = 'vietnam-lead-finder-column-widths-v1';
+
+function readColumnWidths() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(COLUMN_WIDTHS_KEY) || 'null');
+    if (Array.isArray(stored) && stored.length === TABLE_COLUMNS.length && stored.every(value => Number.isFinite(value) && value > 0)) return stored as number[];
+  } catch { /* Use default widths when saved preferences cannot be read. */ }
+  return DEFAULT_COLUMN_WIDTHS;
+}
+
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'Tất cả' },
   { key: 'new', label: 'Mới' },
@@ -78,6 +100,8 @@ export default function App() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busyId, setBusyId] = useState('');
+  const [columnWidths, setColumnWidths] = useState(readColumnWidths);
+  const resizing = useRef<{ index: number; startX: number; left: number; right: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const exportParams = new URLSearchParams();
   if (filter !== 'all') exportParams.set('status', filter);
@@ -102,6 +126,42 @@ export default function App() {
   };
 
   useEffect(() => { void load('all', ''); }, []);
+
+  useEffect(() => {
+    const onPointerMove = (event: PointerEvent) => {
+      const drag = resizing.current;
+      if (!drag) return;
+      const delta = (event.clientX - drag.startX) / Math.max(1, document.querySelector('.leads-table')?.getBoundingClientRect().width || 1) * 100;
+      const leftMin = TABLE_COLUMNS[drag.index].min;
+      const rightMin = TABLE_COLUMNS[drag.index + 1].min;
+      const left = Math.max(leftMin, Math.min(drag.left + drag.right - rightMin, drag.left + delta));
+      const right = drag.left + drag.right - left;
+      setColumnWidths(current => current.map((width, index) => index === drag.index ? left : index === drag.index + 1 ? right : width));
+    };
+    const onPointerUp = () => {
+      if (!resizing.current) return;
+      resizing.current = null;
+      document.body.classList.remove('resizing-columns');
+    };
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths));
+  }, [columnWidths]);
+
+  const startResize = (index: number, event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (index >= TABLE_COLUMNS.length - 1) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    resizing.current = { index, startX: event.clientX, left: columnWidths[index], right: columnWidths[index + 1] };
+    document.body.classList.add('resizing-columns');
+  };
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(filter, query); }, 200);
@@ -215,11 +275,22 @@ export default function App() {
             <h3>{counts.all === 0 ? 'Bắt đầu với shortlist đầu tiên' : 'Chưa có doanh nghiệp trong mục này'}</h3>
             <p>{counts.all === 0 ? 'Khi AI hoàn thành tìm kiếm, nhập file analysis.json để xem bằng chứng và quản lý lead tại đây.' : 'Chọn mục trạng thái khác hoặc thay đổi từ khóa tìm kiếm.'}</p>
             {counts.all === 0 && <button className="button button-primary" onClick={() => fileRef.current?.click()}>Chọn file nghiên cứu</button>}
-          </div> : <div className="table-scroll" role="region" aria-label="Bảng quản lý doanh nghiệp, kéo ngang để xem đầy đủ cột" tabIndex={0}>
+          </div> : <div className="table-scroll" role="region" aria-label="Bảng quản lý doanh nghiệp, kéo tay nắm ở tiêu đề để chỉnh độ rộng cột" tabIndex={0}>
             <table className="leads-table">
+              <colgroup>{columnWidths.map((width, index) => <col key={TABLE_COLUMNS[index].key} style={{ width: `${width}%` }} />)}</colgroup>
               <thead>
-                <tr className="group-row"><th rowSpan={2} scope="col">Doanh nghiệp</th><th colSpan={10} scope="colgroup">Thông tin liên hệ công khai</th><th colSpan={2} scope="colgroup">Đánh giá</th><th colSpan={3} scope="colgroup">Theo dõi</th></tr>
-                <tr className="column-row"><th>Website</th><th>Điện thoại</th><th>Email</th><th>LinkedIn</th><th>Facebook</th><th>Instagram</th><th>TikTok</th><th>YouTube</th><th>Zalo</th><th>X</th><th>Điểm</th><th>Tín hiệu</th><th>Trạng thái</th><th>Bước tiếp theo</th><th>Ghi chú</th></tr>
+                <tr className="column-row">{TABLE_COLUMNS.map((column, index) => <th key={column.key} scope="col" className={`resizable-heading heading-${column.key}`}>
+                  {column.label}{index < TABLE_COLUMNS.length - 1 && <button className="column-resizer" type="button" aria-label={`Kéo để đổi độ rộng cột ${column.label}`} title="Kéo để đổi độ rộng cột" onPointerDown={event => startResize(index, event)} onKeyDown={(event: ReactKeyboardEvent<HTMLButtonElement>) => {
+                    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+                    event.preventDefault();
+                    const direction = event.key === 'ArrowRight' ? 1 : -1;
+                    const next = [...columnWidths];
+                    const amount = event.shiftKey ? 5 : 1;
+                    const left = Math.max(TABLE_COLUMNS[index].min, Math.min(next[index] + next[index + 1] - TABLE_COLUMNS[index + 1].min, next[index] + direction * amount));
+                    next[index + 1] += next[index] - left;
+                    next[index] = left;
+                    setColumnWidths(next);
+                  }} />}</th>)}</tr>
               </thead>
               <tbody>{leads.map(lead => <LeadRow key={lead.id} lead={lead} busy={busyId === lead.id} onStatus={changeStatus} onSaveNote={saveNote} />)}</tbody>
             </table>
@@ -240,27 +311,32 @@ function LeadRow({ lead, busy, onStatus, onSaveNote }: {
   const [expanded, setExpanded] = useState(false);
   useEffect(() => setDraft(lead.note || ''), [lead.note]);
 
+  const socials = [
+    ['LinkedIn', lead.contact_linkedin, lead.contact_linkedin_source],
+    ['Facebook', lead.contact_facebook, lead.contact_facebook_source],
+    ['Instagram', lead.contact_instagram, lead.contact_instagram_source],
+    ['TikTok', lead.contact_tiktok, lead.contact_tiktok_source],
+    ['YouTube', lead.contact_youtube, lead.contact_youtube_source],
+    ['Zalo', lead.contact_zalo, lead.contact_zalo_source],
+    ['X', lead.contact_x, lead.contact_x_source],
+  ].filter((item): item is [string, string, string | undefined] => Boolean(item[1]));
+
   return <>
     <tr className="lead-row">
-      <th scope="row" className="company-cell"><strong>{lead.company_url ? <a href={lead.company_url} target="_blank" rel="noreferrer">{lead.company} ↗</a> : lead.company}</strong><span>{[lead.industry, lead.location, lead.target_role].filter(Boolean).join(' · ') || 'Doanh nghiệp'}</span><button className="row-detail-toggle" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? 'Ẩn chi tiết' : 'Xem bằng chứng'}</button></th>
-      <td><ContactValue href={lead.company_url} value={linkLabel(lead.company_url)} empty="Chưa tìm thấy" /></td>
-      <td><ContactValue href={lead.contact_phone ? `tel:${lead.contact_phone}` : undefined} value={lead.contact_phone} source={lead.contact_phone_source} empty="Chưa tìm thấy" /></td>
-      <td><ContactValue href={lead.contact_email ? `mailto:${lead.contact_email}` : undefined} value={lead.contact_email} source={lead.contact_email_source} empty="Chưa tìm thấy" /></td>
-      <td><ContactValue href={lead.contact_linkedin} value={linkLabel(lead.contact_linkedin)} source={lead.contact_linkedin_source} empty="Chưa tìm thấy" /></td>
-      <td><ContactValue href={lead.contact_facebook} value={linkLabel(lead.contact_facebook)} source={lead.contact_facebook_source} empty="Chưa tìm thấy" /></td>
-      <td><ContactValue href={lead.contact_instagram} value={linkLabel(lead.contact_instagram)} source={lead.contact_instagram_source} empty="Chưa tìm thấy" /></td>
-      <td><ContactValue href={lead.contact_tiktok} value={linkLabel(lead.contact_tiktok)} source={lead.contact_tiktok_source} empty="Chưa tìm thấy" /></td>
-      <td><ContactValue href={lead.contact_youtube} value={linkLabel(lead.contact_youtube)} source={lead.contact_youtube_source} empty="Chưa tìm thấy" /></td>
-      <td><ContactValue href={lead.contact_zalo} value={linkLabel(lead.contact_zalo)} source={lead.contact_zalo_source} empty="Chưa tìm thấy" /></td>
-      <td><ContactValue href={lead.contact_x} value={linkLabel(lead.contact_x)} source={lead.contact_x_source} empty="Chưa tìm thấy" /></td>
-      <td><span className="table-score">{lead.score}<small>/100</small></span></td>
-      <td className="signal-cell" title={lead.pain_signal || lead.evidence}>{lead.pain_signal || lead.evidence || 'Chưa có mô tả tín hiệu'}</td>
-      <td><select className={`table-status status-${lead.status}`} value={lead.status} disabled={busy} onChange={event => onStatus(lead, event.target.value as Status)} aria-label={`Trạng thái ${lead.company}`}><option value="new">Mới</option><option value="contacted">Đã liên hệ</option><option value="ignore">Bỏ qua</option></select></td>
-      <td className="next-step-cell" title={lead.next_step}>{lead.next_step || 'Kiểm tra nguồn trước khi liên hệ'}</td>
-      <td><button className="note-toggle" aria-expanded={editing} onClick={() => setEditing(value => !value)}>{editing ? 'Đóng' : lead.note ? 'Sửa ghi chú' : '+ Ghi chú'}</button></td>
+      <th scope="row" className="company-cell"><strong>{lead.company_url ? <a href={lead.company_url} target="_blank" rel="noreferrer">{lead.company} ↗</a> : lead.company}</strong><span>{[lead.industry, lead.location].filter(Boolean).join(' · ') || 'Doanh nghiệp'}</span><button className="row-detail-toggle" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? 'Ẩn chi tiết' : 'Chi tiết & bằng chứng'}</button></th>
+      <td data-label="Website"><ContactValue href={lead.company_url} value={linkLabel(lead.company_url)} empty="Chưa tìm thấy" /></td>
+      <td data-label="Điện thoại"><ContactValue href={lead.contact_phone ? `tel:${lead.contact_phone}` : undefined} value={lead.contact_phone} source={lead.contact_phone_source} empty="Chưa tìm thấy" /></td>
+      <td data-label="Email"><ContactValue href={lead.contact_email ? `mailto:${lead.contact_email}` : undefined} value={lead.contact_email} source={lead.contact_email_source} empty="Chưa tìm thấy" /></td>
+      <td data-label="Mạng xã hội"><div className="social-links">{socials.length ? socials.map(([label, url, source]) => <a key={label} href={url} target="_blank" rel="noreferrer" title={source ? `${label}, nguồn dữ liệu` : label}>{label}<span className="sr-only">, mở trang công khai</span></a>) : <span className="contact-empty">Chưa tìm thấy</span>}</div></td>
+      <td data-label="Điểm"><span className="table-score">{lead.score}<small>/100</small></span></td>
+      <td data-label="Tín hiệu" className="signal-cell" title={lead.pain_signal || lead.evidence}>{lead.pain_signal || lead.evidence || 'Chưa có mô tả tín hiệu'}</td>
+      <td data-label="Trạng thái"><select className={`table-status status-${lead.status}`} value={lead.status} disabled={busy} onChange={event => onStatus(lead, event.target.value as Status)} aria-label={`Trạng thái ${lead.company}`}><option value="new">Mới</option><option value="contacted">Đã liên hệ</option><option value="ignore">Bỏ qua</option></select></td>
+      <td data-label="Bước tiếp theo" className="next-step-cell" title={lead.next_step}>{lead.next_step || 'Kiểm tra nguồn trước khi liên hệ'}
+        <button className="note-toggle" aria-expanded={editing} onClick={() => setEditing(value => !value)}>{editing ? 'Đóng ghi chú' : lead.note ? 'Sửa ghi chú' : '+ Ghi chú'}</button></td>
     </tr>
-    {(expanded || editing) && <tr className="detail-row"><td colSpan={16}>
-      {expanded && <div className="expanded-details"><div><b>Tín hiệu:</b> {lead.pain_signal || lead.evidence || 'Chưa có'}</div><div><b>Vì sao phù hợp:</b> {lead.why_fit || 'Chưa có'}</div><div><b>Vì sao lúc này:</b> {lead.why_now || 'Chưa có'}</div>{lead.caution && <div className="caution"><b>Lưu ý:</b> {lead.caution}</div>}
+    {(expanded || editing) && <tr className="detail-row"><td colSpan={TABLE_COLUMNS.length}>
+      {expanded && <div className="expanded-details"><div className="detail-block"><b>Mạng xã hội & nguồn xác minh</b><div className="detail-socials">{socials.length ? socials.map(([label, url, source]) => <span key={label}><a href={url} target="_blank" rel="noreferrer">{label} ↗</a>{source && <> · <a className="contact-source" href={source} target="_blank" rel="noreferrer">Nguồn</a></>}</span>) : <span>Chưa tìm thấy hồ sơ chính thức</span>}</div></div>
+        <div><b>Ngành, địa điểm, vai trò mục tiêu:</b> {[lead.industry, lead.location, lead.target_role].filter(Boolean).join(' · ') || 'Chưa có'}</div><div><b>Tín hiệu:</b> {lead.pain_signal || lead.evidence || 'Chưa có'}</div><div><b>Vì sao phù hợp:</b> {lead.why_fit || 'Chưa có'}</div><div><b>Vì sao lúc này:</b> {lead.why_now || 'Chưa có'}</div><div><b>Bước tiếp theo:</b> {lead.next_step || 'Kiểm tra nguồn trước khi liên hệ'}</div>{lead.caution && <div className="caution"><b>Lưu ý:</b> {lead.caution}</div>}
         {lead.source_url && <a href={lead.source_url} target="_blank" rel="noreferrer">Mở nguồn: {lead.source_title || lead.source_url} ↗</a>}<p className="evidence-meta">{lead.source_type || 'Nguồn công khai'} · Tín hiệu: {lead.signal_date || 'Chưa xác định'} · Kiểm tra: {lead.checked_at || 'Không có dữ liệu'}</p>{lead.dimensions_json && <ScoreBreakdown value={lead.dimensions_json} />}</div>}
       {editing && <div className="note-editor"><label htmlFor={`note-${lead.id}`}>Ghi chú nội bộ</label><textarea id={`note-${lead.id}`} value={draft} maxLength={4000} onChange={event => setDraft(event.target.value)} placeholder="Ghi lại kết quả trao đổi hoặc việc cần làm..." /><div><span>{draft.length}/4000</span><button className="button button-dark" disabled={busy || draft === (lead.note || '')} onClick={() => onSaveNote(lead, draft)}>Lưu ghi chú</button></div></div>}
     </td></tr>}
