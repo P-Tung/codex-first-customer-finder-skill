@@ -10,6 +10,7 @@ Use this guide when the research scope targets companies operating in Vietnam. T
 - The National Business Registration Portal: corroborate the legal entity, enterprise code, address, legal status, and representative information when publicly available.
 - Ministry of Industry and Trade Go Global directory: discover exporters, suppliers, and businesses listed by category and location.
 - Official company websites and public business profiles: establish the canonical entity URL and current operating context.
+- When a company website is available, inspect its header, footer, About, and Contact pages for official social links and public business contacts. Search and cross-check the company's public LinkedIn, Facebook, Instagram, TikTok, YouTube, Zalo, and X accounts using its name, legal name, and domain.
 
 ### Business triggers
 
@@ -35,6 +36,7 @@ Use this guide when the research scope targets companies operating in Vietnam. T
 - Require one company identity source and at least one separate pain, intent, or timing signal for a primary prospect.
 - Treat funding, hiring, and directory presence as different signals. Do not merge them into a claim that the company wants to buy.
 - Prefer official company routes over guessed personal contact details.
+- Save the exact public source URL beside each phone, business email, or social profile; do not list an employee's personal profile as a company contact.
 - Do not use private groups, gated sources, data brokers, scraped contact lists, personal email discovery, or phone enrichment.
 - Record `signal_date` separately from `checked_at` and report blocked or snippet-only sources as coverage gaps.
 - A public route is a possible connection path, not permission to send promotion.

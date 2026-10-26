@@ -89,7 +89,9 @@ def lead_dict(row: sqlite3.Row) -> dict:
     except (TypeError, json.JSONDecodeError):
         contacts = {}
     for key, column in (("phone", "contact_phone"), ("email", "contact_email"),
-                        ("linkedin", "contact_linkedin"), ("facebook", "contact_facebook")):
+                        ("linkedin", "contact_linkedin"), ("facebook", "contact_facebook"),
+                        ("instagram", "contact_instagram"), ("tiktok", "contact_tiktok"),
+                        ("youtube", "contact_youtube"), ("zalo", "contact_zalo"), ("x", "contact_x")):
         item = contacts.get(key, {}) if isinstance(contacts, dict) else {}
         result[column] = item.get("value", "") if isinstance(item, dict) else ""
         result[f"{column}_source"] = item.get("source_url", "") if isinstance(item, dict) else ""
@@ -121,6 +123,9 @@ def xlsx_bytes(rows: list[dict]) -> bytes:
         ("company", "Doanh nghiệp"), ("company_url", "Website doanh nghiệp"),
         ("contact_phone", "Điện thoại công khai"), ("contact_email", "Email doanh nghiệp công khai"),
         ("contact_linkedin", "LinkedIn doanh nghiệp"), ("contact_facebook", "Facebook doanh nghiệp"),
+        ("contact_instagram", "Instagram doanh nghiệp"), ("contact_tiktok", "TikTok doanh nghiệp"),
+        ("contact_youtube", "YouTube doanh nghiệp"), ("contact_zalo", "Zalo doanh nghiệp"),
+        ("contact_x", "X doanh nghiệp"),
         ("industry", "Ngành"), ("location", "Khu vực"),
         ("score", "Điểm phù hợp"), ("stage", "Tín hiệu"), ("status", "Trạng thái"),
         ("target_role", "Vai trò mục tiêu"), ("pain_signal", "Nhu cầu / tín hiệu"),
@@ -254,7 +259,7 @@ class Handler(BaseHTTPRequestHandler):
             from io import StringIO
             rows = export_rows(urlparse(self.path).query)
             output = StringIO(newline="")
-            fields = ["company", "company_url", "contact_phone", "contact_email", "contact_linkedin", "contact_facebook", "industry", "location", "score", "stage", "status", "target_role", "pain_signal", "evidence", "why_fit", "why_now", "source_title", "source_url", "signal_date", "checked_at", "contact_url", "next_step", "caution", "note"]
+            fields = ["company", "company_url", "contact_phone", "contact_email", "contact_linkedin", "contact_facebook", "contact_instagram", "contact_tiktok", "contact_youtube", "contact_zalo", "contact_x", "industry", "location", "score", "stage", "status", "target_role", "pain_signal", "evidence", "why_fit", "why_now", "source_title", "source_url", "signal_date", "checked_at", "contact_url", "next_step", "caution", "note"]
             writer = csv.DictWriter(output, fieldnames=fields, extrasaction="ignore")
             writer.writeheader()
             for row in rows:

@@ -43,7 +43,8 @@ Use multiple query angles and source types, including accessible public X discus
 - Use public, intentionally shared professional or business information only.
 - Do not bypass login walls, paywalls, access controls, rate limits, or robots restrictions.
 - Do not use data brokers, leaked datasets, private groups, personal email discovery, phone enrichment, or sensitive personal information.
-- When an original public source explicitly lists company contact details, preserve the business phone, role-based/business email, official LinkedIn page, and official Facebook page in `public_contacts`, with the exact public `source_url` for each field. Leave unavailable fields blank. Never guess or enrich contact details.
+- When a company website is found, inspect its header, footer, About, and Contact pages for company phone, business email, and links to official social profiles. Then search the public company profiles on LinkedIn, Facebook, Instagram, TikTok, YouTube, Zalo, and X by company name, legal name, and domain. Confirm each profile matches the company before recording it.
+- Store public company contact details in `public_contacts` with the exact source URL for each value. Supported keys are `phone`, `email`, `linkedin`, `facebook`, `instagram`, `tiktok`, `youtube`, `zalo`, and `x`. Leave missing values blank and document channels checked but not found, or inaccessible, in the contact-route note. Never guess, enrich, or substitute an employee's personal profile for an official company page.
 - Do not infer protected traits or target people using health, financial hardship, political belief, sexuality, religion, or other sensitive attributes.
 - Prefer companies, public professional profiles, public requests, and community posts relevant to the product.
 - Quote minimally and paraphrase by default. Link every material pain or timing signal.

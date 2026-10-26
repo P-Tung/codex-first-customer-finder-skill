@@ -123,6 +123,7 @@ def format_quality(profile):
 CSV_FIELDS = ["record_type", "demo", "id", "name", "entity_url", "score", "stage", "target_role", "role_basis",
               "pain_signal", "source_url", "signal_date", "checked_at", "contact_status", "contact_url",
               "contact_source_url", "contact_note", "public_phone", "public_email", "public_linkedin", "public_facebook",
+              "public_instagram", "public_tiktok", "public_youtube", "public_zalo", "public_x",
               "next_step", "cta", "opener", "caution", "status", "feedback"]
 
 
@@ -145,7 +146,9 @@ def build_csv(data):
         route = p.get("contact_route", {})
         public_contacts = p.get("public_contacts", {})
         public_contacts = public_contacts if isinstance(public_contacts, dict) else {}
-        contact_values = {"phone": "public_phone", "email": "public_email", "linkedin": "public_linkedin", "facebook": "public_facebook"}
+        contact_values = {"phone": "public_phone", "email": "public_email", "linkedin": "public_linkedin",
+                          "facebook": "public_facebook", "instagram": "public_instagram", "tiktok": "public_tiktok",
+                          "youtube": "public_youtube", "zalo": "public_zalo", "x": "public_x"}
         for key, field in contact_values.items():
             item = public_contacts.get(key, {})
             row[field] = item.get("value", "") if isinstance(item, dict) else ""
